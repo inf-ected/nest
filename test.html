@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Movies Search</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <style>
+        * {
+            margin: 5px;
+            text-align: center;
+        }
+
+        .page {
+            width: 950px;
+            margin: 0 auto;
+        }
+
+        .prev {
+            width: 100px;
+            float: left;
+        }
+
+        #form1 {
+            border: 1px solid grey;
+            border-radius: 5px;
+            padding: 5px;
+            margin: 0 auto;
+            width: 200px;
+            background-color: antiquewhite;
+        }
+
+        .mov {
+            width: 255px;
+            height: 180px;
+            float: left;
+            border: 1px solid grey;
+            border-radius: 10px;
+            padding: 5px;
+            background-color: antiquewhite;
+            margin: 5px 20px;
+        }
+
+        .fullInfo,
+        .pagin {
+            clear: both;
+            background-color: antiquewhite;
+            border-radius: 10px;
+            border: 1px solid grey;
+        }
+
+        .fullInfo td table {
+            border-collapse: collapse;
+
+        }
+
+        .fullInfo td table td {
+            border: 1px solid #080808;
+        }
+
+        .pp {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .pp:hover {
+            background-color: aquamarine;
+            border-radius: 5px;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div class="page">
+        <h2>Search:</h2>
+        <form action="http://www.omdbapi.com/" id="form1"  onsubmit="return false">
+            <input type="hidden" name="i" value="tt3896198">
+            <input type="hidden" name="apikey" value="66da583c">
+            <!---->
+            Title:
+            <!-- s t  -->
+            <input type="text" name="s" id="s">
+            <br />
+            Type:
+            <select name="type" id="type">
+                <option value="movie">Movie</option>
+                <option value="series">Series</option>
+                <option value="episode">Episode</option>
+                <!--                <input type="submit" value="Search">-->
+            </select>
+        </form>
+        <button id="but">Search</button>
+        <div class="results"></div>
+        <div class="pagin"></div>
+        <div class="fullInfo"></div>
+    </div>
+    <script>
+        let noImage = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTtHeZVclIElk0OXHYBZlKrpUN__aV9xLGKfR6Syl7H8EGN1lvU&s";
+
+
+        // onload
+        $(function() {
+            //обработчик на клик кнопки
+            $('#but').click(function() {
+                //очистка предидущих результатов поиска
+                $('.fullInfo, .pagin').empty();
+                //выводим первую страницу поиска
+                fillRes(1);
+            });
+        });
+//****************************************************************************************************************//
+        //основначя функция = функция заполняющая див результатов поиска
+        function fillRes(page) {
+            //чистим предидущие результаты
+            $('.fullInfo, .results').empty();
+            //урл нашего API
+            var url = 'http://www.omdbapi.com/';
+            //объект параметров который изменит урл в нем последние три поля инициализируем интерполированными строками
+            tagObj = {
+                i: "tt3896198",
+                apikey: "66da583c",
+                s: `${form1[2].value}`,
+                type: `${form1[3].value}`,
+                page: `${page}`
+            };
+            $.getJSON(url, tagObj)
+                //Колбэк
+                .done(function(data) {
+                    //так как все типа string а не bool итд
+                    if (data.Response == "True") {
+                        //устанавливаем текущую страницу в свойство дива results
+                        //$('.results')[0].dataset.page=page;
+                        //сохраняем сколько всего страниц для такого поиска
+                        //$('.results')[0].dataset['totalPages']=Math.ceil(data.totalResults/10);
+                        //Количество результатов в заголовке
+                        $('.results').html(`<h2>Total Results: ${data.totalResults} Page: ${page} of ${Math.ceil(data.totalResults/10)} </h2>`);
+                        //обходим массив результатов
+                        for (let x of data.Search) {
+                            //формируем для каждого фильма свои див с мини обзором
+                            //сначала создаем элементы потом их все добавляем в контейнер
+                            //можно создавать строкой, можно через DOM document.createElement()
+                            //если у фильма нет постер то значение "N/A"
+                            let img = `<img class="prev" src=${(x.Poster!='N/A')?x.Poster:noImage}/>`;
+                            let type = form1[3].value; //наверное не совсем правильно из формы брать но переделывать уже лениво
+                            let title = x.Title;
+                            let year = x.Year;
+                            // а можно через jQuery создавать элемент
+                            let but = $('<button></button>').text('See More');
+                            // сразу вешаем на него обработчик, можно и позже это сделать, но тогда надо както сохранять ИД для каждого 
+                            // фильма(например атрибут дата у див контейнера или какойнить массив объявленый глобально), но ИМХО проще 
+                            // сразу тут написать , хоть это и усложняет общий вид
+                            $(but).click(function() {
+                                // запрос  на фулл инфо по конкретному фильму
+                                $.getJSON('http://www.omdbapi.com/', {
+                                        apikey: "66da583c",
+                                        i: `${x.imdbID}`,
+                                        plot: "full"
+                                    })
+                                    // колбэк функция которая и будет строить fullInfo- див
+                                    .done(function(data) {
+                                        //строки с обратными кавычками РУЛЯТ(!!!) поддерживают многстрочность и интерполяцию. 
+                                        //таблицы стало рисовать гораздо приятней и код понятней хоть и длинее
+                                        $('.fullInfo').html(`<h2>Film Info:</h2>
+                                                <table>
+                                                    <tr>
+                                                        <td>
+                                                            <img src=${(data.Poster!='N/A')?data.Poster:noImage}>
+                                                        </td>
+                                                        <td>
+                                                            <table>
+                                                                <tr>
+                                                                    <td>Title:</td>
+                                                                    <td>${data.Title}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>Released:</td>
+                                                                    <td>${data.Released}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>Genre:</td>
+                                                                    <td>${data.Genre}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>Country:</td>
+                                                                    <td>${data.Country}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>Director:</td>
+                                                                    <td>${data.Director}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>Writer:</td>
+                                                                    <td>${data.Writer}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>Actors:</td>
+                                                                    <td>${data.Actors}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td>Awards:</td>
+                                                                    <td>${data.Awards}</td>
+                                                                </tr>
+                                                            </table>
+                                                        </td>
+                                                    </tr>
+                                                </table>`); //конец построения ФуллИнфо таблицы
+                                    }); //конец .done
+                            }); //конец обработчика нажатия кнопки SeeMore
+                            // создаем div-контейнер класс mov для preview данных по фильму 
+                            let movieContainer = $('<div class="mov"></div>').append(img, type, '</br>', title, '</br>', year, '</br>', but);
+                            // добавляем его в результаты
+                            $('.results').append(movieContainer);
+                        } //конец итераций массива результатов
+
+                        // Вызов функции пагинации нужен только для первой страницы 
+                        // дальше она сама себя вызывает
+                        // и нужен он здесь для того чтоб не писать колбэк возвращающий максимальное количество страниц для этого запроса
+                        if (page == 1) {
+                            let start = 1;
+                            let end = Math.ceil(data.totalResults / 10);
+                            fillPagin(start, end);
+                        }
+                        //конец if-нашли
+                    } else {
+                        //если ничего не нашли
+                        $('.results').text(`${data.Error}`);
+                        //чистим всё
+                        $('.fullInfo, .pagin').empty();
+                    } //конец Elsa
+                }) //конец колбэка .done запроса на поиск всех фильмов
+        } //конец fillRes
+
+//****************************************************************************************************************//
+        //Функция формирующая простейшую пагинацию
+        function fillPagin(s, end) {
+            // подсчитываем сколько нам элементов надо добавить
+            var q = (s + 10 >= end) ? end - s + 1 : 10;
+            // чистим предидущий вывод
+            $('.pagin').empty();
+            // в цикле формируем элементы и добавляем
+            for (let i = 1; i <= q; i++) {
+                let x = $('<div class="pp"></div>').text(s);
+                $(x).click(function() { debugger;
+                    //обработчик на клик по этому элементу
+                    //аргумент то текстовое значение которое мы уже дали в див
+                    fillRes($(this).text()); //просто дать переменную S не работает S не меняется тут
+                });
+                //ну и собсно добавить этот элемент в конец дива пагинации
+                $('.pagin').append(x);
+                //инкремент (сейчас самая модная форма: s-=-1 ;-))) 
+                s++;
+            }
+            //кнопка вперед добавляется последним элементом
+            // внутри можно использовать arrow функции (лямбды)
+            // ну и создание элемента + сразу обработчик на нем 
+            // обработчик вызывает рекурсию. тернарно подсчитывается аргумент
+            $('.pagin').append($('<div class="pp"></div>').text('>>').click(() => fillPagin((s + 10 >= end) ? end : s, end)));
+            // кнопка назад добавляется первым элементом
+            // все тоже самое только в другую сторону и без лямбды
+            $('.pagin').prepend($('<div class="pp"></div>').text('<<').click(function() {
+                fillPagin(((s - 20) <= 1) ? 1 : s - 20, end)
+            }));
+        }
+    </script>
+</body></html>
